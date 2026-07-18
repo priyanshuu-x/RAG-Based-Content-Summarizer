@@ -1,0 +1,15 @@
+streamlit
+validators==0.28.1
+langchain
+langchain-classic
+langchain-community
+langchain-text-splitters
+langchain-groq
+langchain_huggingface
+sentence-transformers
+faiss-cpu
+rank_bm25
+youtube_transcript_api
+bs4
+requests
+python-dotenv

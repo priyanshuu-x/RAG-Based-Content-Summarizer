@@ -1,0 +1,11 @@
+__pycache__
+*.pyc
+*.pyo
+.git
+.gitignore
+.venv
+venv/
+vectorstore_cache/
+.streamlit/secrets.toml
+.env
+README.md
