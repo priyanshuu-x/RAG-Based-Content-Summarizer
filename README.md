@@ -32,8 +32,9 @@ Paste a URL, get a summary, then ask follow-up questions grounded in the actual 
 | Keyword retrieval | BM25 (`rank_bm25`) |
 | Web scraping | `requests` + `BeautifulSoup` (custom content cleaner) |
 | YouTube transcripts | `youtube-transcript-api` |
-| Containerization | Docker |
-| CI/CD | GitHub Actions → Render (Docker-based deploy) |
+| Containerization | Docker (used for local testing/portability; not used by the current hosting platform) |
+| Deployment | Streamlit Community Cloud (auto-deploys from GitHub on push) |
+| CI | GitHub Actions — lint, test, and a Docker build check |
 | Testing | `pytest` |
 | Linting | `ruff` |
 
@@ -56,7 +57,7 @@ rag-content-summarizer/
 │   └── test_app.py                 # pytest suite
 └── .github/
     └── workflows/
-        └── ci.yml                  # Lint → test → Docker build → gated deploy to Render
+        └── ci.yml                  # Lint → test → Docker build check (no deploy job — see below)
 ```
 
 ---
@@ -147,24 +148,34 @@ docker stop <container_id>
 
 ---
 
-## Deployment (Render)
+## Deployment (Streamlit Community Cloud)
 
-1. Push the repo to GitHub
-2. On [render.com](https://render.com): **New +** → **Web Service** → connect the repo
-3. Runtime: **Docker** (auto-detected from the `Dockerfile`)
-4. Add environment variable: `GROQ_API_KEY` = your real key
-5. Set **Health Check Path** to `/_stcore/health`
-6. Deploy
+The app is deployed on [Streamlit Community Cloud](https://share.streamlit.io), which deploys directly from `requirements.txt` — it does **not** use the `Dockerfile`.
 
-### CI/CD pipeline
+1. Push the repo to GitHub (must be a public repo for the free tier)
+2. Go to [share.streamlit.io](https://share.streamlit.io) → sign in with GitHub
+3. **Create app** → **From existing repo** → select this repo, branch `main`, main file path `app.py`
+4. Under **App settings → Secrets**, add:
+   ```toml
+   GROQ_API_KEY = "your-actual-groq-api-key"
+   ```
+5. Deploy — Streamlit installs `requirements.txt` and starts the app automatically
+
+Streamlit Community Cloud auto-redeploys on every push to `main` — no manual deploy step, webhook, or secret needed on the GitHub side for this.
+
+### Why the Dockerfile is still in this repo
+
+The Dockerfile isn't used by this deployment, but it's kept for a few real reasons:
+- **Local testing** — `docker build` + `docker run` lets you test the app in the exact environment it would run in on a container-based host, before pushing
+- **Portability** — if this project ever moves to a Docker-based host (Render, Cloud Run, etc.), the image is already built and proven to work, no rework needed
+- **CI validation** — the `docker-build` job in CI (below) keeps this file honest by actually building it on every push, so it doesn't silently rot
+
+### CI pipeline
 `.github/workflows/ci.yml` runs on every push/PR to `main`:
 1. **Lint** (`ruff`) + **test** (`pytest`)
-2. **Docker build check** — verifies the image actually builds
-3. **Deploy** — only on pushes to `main`, only if the above pass, triggered via a Render deploy hook
+2. **Docker build check** — confirms the Dockerfile still builds cleanly (a safety net for future portability, not a deploy gate for the current host)
 
-To wire step 3 up:
-- In Render: **Settings → Auto-Deploy → off**, then copy the **Deploy Hook** URL
-- In GitHub: **Settings → Secrets and variables → Actions** → add `RENDER_DEPLOY_HOOK_URL` with that value
+There's deliberately no "deploy" job — Streamlit Community Cloud's own GitHub integration handles that step independently of this workflow.
 
 ---
 
@@ -181,6 +192,7 @@ Two in-memory limits protect the shared Groq API key from abuse:
 ## Known Limitations / Future Improvements
 
 - **Website content cleaning is heuristic, not perfect.** Some sites (e.g. Wikipedia's newer page-tab UI — "Article/Talk," "Read/Edit/View history") place navigation text outside the tags currently filtered, so some boilerplate can still leak into scraped content. Planned fix: more targeted selectors per common site pattern, or switching to a readability-focused extraction library.
+- **Streamlit Community Cloud's free tier caps memory at 1GB.** The full stack (`torch` + `sentence-transformers` + FAISS + LangChain) fits within this, but there's less headroom than a dedicated container host would offer — worth monitoring under heavier use.
 - No authentication — anyone with the URL can use the app (mitigated, not eliminated, by rate limiting)
 - No SSRF protection on arbitrary user-submitted URLs (low risk at current scale)
 - `vectorstore_cache/` is local disk per container instance — not shared across replicas, and wiped on redeploy unless a persistent disk is attached
