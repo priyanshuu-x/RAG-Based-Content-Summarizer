@@ -40,12 +40,17 @@ jobs:
       - name: Build Docker image
         run: docker build -t rag-app:ci-check .
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: [test, docker-build]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-    steps:
-      - name: Trigger Render deploy
-        run: |
-          curl -f -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+# NOTE: No "deploy" job here on purpose.
+#
+# This app is deployed via Streamlit Community Cloud, which watches the
+# linked GitHub repo directly and auto-redeploys on every push to `main`
+# using requirements.txt (it does NOT use the Dockerfile above).
+#
+# The `docker-build` job is kept as a validation check — it confirms the
+# Dockerfile still builds cleanly, which matters if this project is ever
+# deployed elsewhere (Render, Cloud Run, etc.) later. It's a safety net,
+# not a deployment gate, for the current hosting setup.
+#
+# If you move to a Docker-based host again in the future, re-add a
+# "deploy" job here that triggers that platform's deploy hook, the way
+# the old Render-based version of this workflow did.
