@@ -194,6 +194,7 @@ Two in-memory limits protect the shared Groq API key from abuse:
 ## Known Limitations / Future Improvements
 
 - **Website content cleaning is heuristic, not perfect.** Some sites (e.g. Wikipedia's newer page-tab UI — "Article/Talk," "Read/Edit/View history") place navigation text outside the tags currently filtered, so some boilerplate can still leak into scraped content. Planned fix: more targeted selectors per common site pattern, or switching to a readability-focused extraction library.
+- **YouTube transcript fetching may fail on cloud-hosted deployments.** YouTube blocks most cloud-provider IP ranges (AWS, GCP, Azure, and platforms built on them, including Streamlit Community Cloud) to prevent scraping, which can cause `IpBlocked`/`RequestBlocked` errors — this is a known limitation of the `youtube-transcript-api` library on any shared cloud host, not a bug in this app. Website summarization is unaffected. The real fix would be routing YouTube requests through a residential proxy service (e.g. Webshare), which is a paid add-on not currently implemented.
 - **Streamlit Community Cloud's free tier caps memory at 1GB.** The full stack (`torch` + `sentence-transformers` + FAISS + LangChain) fits within this, but there's less headroom than a dedicated container host would offer — worth monitoring under heavier use.
 - No authentication — anyone with the URL can use the app (mitigated, not eliminated, by rate limiting)
 - No SSRF protection on arbitrary user-submitted URLs (low risk at current scale)
@@ -217,6 +218,3 @@ Covers:
 
 ---
 
-## License
-
-Personal/educational project — add a license here if you plan to open-source it.

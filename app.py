@@ -7,6 +7,8 @@ from youtube_transcript_api._errors import (
     TranscriptsDisabled,
     NoTranscriptFound,
     VideoUnavailable,
+    IpBlocked,
+    RequestBlocked,
 )
 from langchain_community.vectorstores import FAISS
 from langchain_community.retrievers import BM25Retriever
@@ -255,6 +257,20 @@ def load_content(url):
             raise ValueError("No transcript is available for this video.")
         except VideoUnavailable:
             raise ValueError("This video is unavailable or private.")
+        except IpBlocked:
+            raise ValueError(
+                "YouTube is currently blocking transcript requests from this "
+                "app's hosting server (a known issue — YouTube blocks most "
+                "shared/cloud-provider IP ranges). This isn't something wrong "
+                "with the video or your input. Website URLs are unaffected. "
+                "Try again later, or run the app locally for YouTube support."
+            )
+        except RequestBlocked:
+            raise ValueError(
+                "YouTube blocked this request, likely due to automated-traffic "
+                "detection on this app's hosting IP. This is a known limitation "
+                "of cloud-hosted deployments, not an issue with this video."
+            )
 
         text = " ".join(
             [item.text for item in transcript]
