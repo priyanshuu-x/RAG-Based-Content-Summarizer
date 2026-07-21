@@ -12,9 +12,6 @@ from youtube_transcript_api._errors import (
 )
 from langchain_community.vectorstores import FAISS
 from langchain_community.retrievers import BM25Retriever
-# LangChain v1.0 moved EnsembleRetriever out of the core `langchain`
-# package into `langchain-classic`. Add "langchain-classic" to
-# requirements.txt if you don't already have it installed.
 from langchain_classic.retrievers import EnsembleRetriever
 from langchain_huggingface import HuggingFaceEmbeddings
 import re
@@ -50,29 +47,21 @@ def get_api_key_from_secrets():
     except Exception:
         # No secrets.toml present at all — fine, fall through
         pass
-
-    # Render / Railway / plain Docker inject secrets as env vars instead
     return os.environ.get("GROQ_API_KEY")
 
 
 with st.sidebar:
 
     secret_api_key = get_api_key_from_secrets()
-
     if secret_api_key:
-
         groq_api_key = secret_api_key
-
         st.success("Groq API Key loaded from secrets ✅")
-
     else:
-
         groq_api_key = st.text_input(
             "Enter Groq API Key",
             type="password",
             help="No key found in secrets — enter one manually for this session."
         )
-
 
 # ================= RATE LIMITING =================
 # Basic in-memory rate limiting to protect the shared Groq API budget
@@ -142,15 +131,9 @@ def check_rate_limit():
 
     return True, ""
 
-
-# ================= URL INPUT =================
-
 generic_url = st.text_input(
     "Enter YouTube or Website URL"
 )
-
-
-# ================= EXTRACT YOUTUBE VIDEO ID =================
 
 def extract_video_id(url):
 
@@ -172,16 +155,12 @@ def extract_video_id(url):
 
     return None
 
-
 # ================= LOAD CONTENT =================
 
 # ================= WEBSITE CONTENT CLEANER =================
-# Raw page scraping (e.g. plain WebBaseLoader) grabs EVERY visible string
-# on the page — nav menus, sidebars, "Edit"/"View history" links, footers,
-# etc. On sites like Wikipedia this boilerplate can be as long as the
-# actual article, and it pollutes both the summary and the embeddings.
-# This strips known-boilerplate tags and prefers semantic content
-# containers (<article>, <main>) when the page provides them.
+# Raw page scraping (e.g. plain WebBaseLoader) grabs EVERY visible string  on the page — nav menus, sidebars, "Edit"/"View history" links, footers,
+# etc. On sites like Wikipedia this boilerplate can be as long as the actual article, and it pollutes both the summary and the embeddings.
+# This strips known-boilerplate tags and prefers semantic content containers (<article>, <main>) when the page provides them.
 
 def clean_website_text(url, timeout=10):
 
@@ -291,15 +270,13 @@ def load_content(url):
 
 
 # ================= CACHED RESOURCES =================
-# @st.cache_resource ensures these are created ONCE per session
-# (or once per unique argument set) instead of on every button click.
+# @st.cache_resource ensures these are created ONCE per session (or once per unique argument set) instead of on every button click.
 
 @st.cache_resource
 def get_embeddings():
     return HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
-
 
 @st.cache_resource
 def get_llm(api_key):
@@ -313,7 +290,6 @@ def get_llm(api_key):
 
 VECTORSTORE_DIR = "vectorstore_cache"
 
-
 def get_store_path(url):
     """Each URL gets its own folder, named by a hash of the URL."""
     url_hash = hashlib.sha256(url.encode()).hexdigest()
@@ -325,16 +301,12 @@ def create_vector_store(text, url):
     store_path = get_store_path(url)
     embeddings = get_embeddings()
 
-    # ---------- REUSE EXISTING INDEX IF WE'VE SEEN THIS URL BEFORE ----------
-
     if os.path.exists(store_path):
         return FAISS.load_local(
             store_path,
             embeddings,
             allow_dangerous_deserialization=True
         )
-
-    # ---------- OTHERWISE BUILD AND SAVE A NEW ONE ----------
 
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
@@ -347,18 +319,13 @@ def create_vector_store(text, url):
         chunks,
         embeddings
     )
-
     os.makedirs(VECTORSTORE_DIR, exist_ok=True)
     vectorstore.save_local(store_path)
-
     return vectorstore
 
-
 # ================= HYBRID RETRIEVER =================
-# Pure vector similarity misses exact keyword matches (names, numbers,
-# acronyms). BM25 is a classic keyword-ranking algorithm that's strong
-# where embeddings are weak. Combining both ("hybrid search") covers
-# more ground than either alone.
+# Pure vector similarity misses exact keyword matches (names, numbers, acronyms). BM25 is a classic keyword-ranking algorithm that's strong
+# where embeddings are weak. Combining both ("hybrid search") covers more ground than either alone.
 
 def get_hybrid_retriever(vectorstore, k=3):
 
@@ -390,17 +357,13 @@ if st.button("Process URL"):
     # ---------- API KEY CHECK ----------
 
     if not groq_api_key:
-
         st.error("Please enter Groq API Key")
-
         st.stop()
 
     # ---------- URL VALIDATION ----------
 
     if not validators.url(generic_url):
-
         st.error("Please enter a valid URL")
-
         st.stop()
 
     # ---------- RATE LIMIT CHECK ----------
@@ -408,9 +371,7 @@ if st.button("Process URL"):
     allowed, rate_limit_message = check_rate_limit()
 
     if not allowed:
-
         st.error(rate_limit_message)
-
         st.stop()
 
     try:
@@ -418,7 +379,6 @@ if st.button("Process URL"):
         # ---------- LOAD CONTENT ----------
 
         with st.spinner("Loading content..."):
-
             text = load_content(generic_url)
 
             # Optional limit — warn instead of silently dropping content
@@ -435,9 +395,7 @@ if st.button("Process URL"):
         # ---------- CREATE VECTOR STORE ----------
 
         with st.spinner("Creating Vector Store..."):
-
             vectorstore = create_vector_store(text, generic_url)
-
             st.session_state.vectorstore = vectorstore
 
         # ---------- INITIALIZE LLM ----------
@@ -457,11 +415,9 @@ if st.button("Process URL"):
         # ---------- GENERATE SUMMARY ----------
 
         with st.spinner("Generating Summary..."):
-
             summary_response = llm.invoke(
                 summary_prompt
             )
-
             st.session_state.summary = (
                 summary_response.content
             )
@@ -471,50 +427,33 @@ if st.button("Process URL"):
         st.success("RAG Pipeline Ready!")
 
     except ValueError as e:
-
         st.error(str(e))
-
     except Exception as e:
-
         st.error("An error occurred while processing this URL.")
-
         st.exception(e)
-
 
 # ================= SHOW SUMMARY =================
 
 if "summary" in st.session_state:
-
     st.subheader("Summary")
-
     st.write(st.session_state.summary)
-
-
-# ================= QUESTION INPUT =================
 
 question = st.text_input(
     "Ask Questions From The Content"
 )
-
-
-# ================= QUESTION ANSWERING =================
 
 if st.button("Ask Question"):
 
     # ---------- VECTOR STORE CHECK ----------
 
     if "vectorstore" not in st.session_state:
-
         st.error("Please process a URL first")
-
         st.stop()
 
     # ---------- EMPTY QUESTION CHECK ----------
 
     if not question:
-
         st.error("Please enter a question")
-
         st.stop()
 
     # ---------- RATE LIMIT CHECK ----------
@@ -522,32 +461,20 @@ if st.button("Ask Question"):
     allowed, rate_limit_message = check_rate_limit()
 
     if not allowed:
-
         st.error(rate_limit_message)
-
         st.stop()
 
     try:
-
         vectorstore = st.session_state.vectorstore
-
-        # ---------- RETRIEVE RELEVANT CHUNKS (HYBRID: BM25 + VECTOR) ----------
-
         retriever = get_hybrid_retriever(vectorstore, k=3)
-
         docs = retriever.invoke(question)
 
-        # ---------- CREATE CONTEXT ----------
 
         context = "\n\n".join(
             [doc.page_content for doc in docs]
         )
 
-        # ---------- INITIALIZE LLM ----------
-
         llm = get_llm(groq_api_key)
-
-        # ---------- QA PROMPT ----------
 
         prompt = f"""
         Answer the question using only the
@@ -563,7 +490,6 @@ if st.button("Ask Question"):
         # ---------- GENERATE ANSWER ----------
 
         with st.spinner("Generating Answer..."):
-
             response = llm.invoke(prompt)
 
         # ---------- STORE ANSWER + SOURCES ----------
@@ -572,30 +498,20 @@ if st.button("Ask Question"):
         st.session_state.sources = docs
 
     except Exception as e:
-
         st.error("Error while generating answer")
-
         st.exception(e)
 
 
 # ================= SHOW ANSWER =================
 
 if "answer" in st.session_state:
-
     st.subheader("Answer")
-
     st.write(st.session_state.answer)
 
     # ---------- SHOW SOURCE CHUNKS ----------
-
     if "sources" in st.session_state and st.session_state.sources:
-
         with st.expander("View source chunks used for this answer"):
-
             for i, doc in enumerate(st.session_state.sources, start=1):
-
                 st.markdown(f"**Chunk {i}**")
-
                 st.write(doc.page_content)
-
                 st.divider()
