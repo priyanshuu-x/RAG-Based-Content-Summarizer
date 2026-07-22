@@ -2,7 +2,7 @@
 
 🔗 **Live demo:** [rag-content-summarizer.streamlit.app](https://rag-content-summarizer.streamlit.app)
 
-A production-hardened Retrieval-Augmented Generation (RAG) app that summarizes and answers questions about **YouTube videos** and **websites** — built with LangChain, FAISS, Groq, and Streamlit.
+A production-hardened Retrieval-Augmented Generation (RAG) app that summarizes and answers questions about **YouTube videos** and **websites** — built with LangChain, FAISS, Groq, and Streamlit .
 
 Paste a URL, get a summary, then ask follow-up questions grounded in the actual source content — with citations showing exactly which chunks the answer came from.
 
